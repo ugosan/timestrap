@@ -2,7 +2,10 @@
 <div class="container">
     <div class="row py-2 mb-4 bg-faded rounded">
         <div class="col-12">
-            <button id="export-report" class="btn btn-primary btn-sm" v-on:click="exportReport">
+            <button id="export-report"
+                    class="btn btn-primary btn-sm"
+                    v-block-during-fetch
+                    v-on:click="exportReport">
                 <i class="fa fa-download" aria-hidden="true"></i>
                 Export Report
             </button>
@@ -74,38 +77,63 @@
                     </div>
                 </div>
             </div>
-            <button id="generate-report" type="submit" class="btn btn-primary btn-sm w-100">
+            <div class="form-group">
+                <div class="row">
+                    <div class="col-md-6">
+                        <select2 id="report-sort-by"
+                                 v-model="orderBy"
+                                 v-bind:options="orderByOptions"
+                                 selected="date"
+                                 placeholder="Order by"></select2>
+                    </div>
+                    <div class="col-md-6">
+                        <select2 id="report-order-dir"
+                                 v-model="orderDir"
+                                 v-bind:options="orderDirOptions"
+                                 selected="desc"
+                                 placeholder="Order direction"></select2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-12">
+            <button id="generate-report"
+                    type="submit"
+                    class="btn btn-primary btn-sm w-100"
+                    v-block-during-fetch>
                 Generate Report
             </button>
         </div>
     </form>
 
-    <div class="mb-4" v-for="entryBlock in entries">
-        <div class="row inset-row">
-            <div class="col-12">
-                <h2 class="display-4 text-muted">
-                    {{ moment(entryBlock.date) }}
-                </h2>
+    <div v-if="this.$perms.view_entry" id="entry-rows">
+        <div class="mb-4" v-for="entryBlock in entries">
+            <div class="row inset-row">
+                <div class="col-12">
+                    <h2 class="display-4 text-muted">
+                        {{ moment(entryBlock.date) }}
+                    </h2>
+                </div>
+            </div>
+            <div class="entry-rows rounded">
+                <entry v-for="(entry, index) in entryBlock.entries"
+                    v-bind:entry="entry"
+                    v-bind:index="index"
+                    v-bind:key="entry.id"
+                    v-bind:editable="editable">
+                </entry>
             </div>
         </div>
-        <div class="entry-rows rounded">
-            <entry v-for="(entry, index) in entryBlock.entries"
-                v-bind:entry="entry"
-                v-bind:index="index"
-                v-bind:key="entry.id"
-                v-bind:editable="editable">
-            </entry>
-        </div>
-    </div>
 
-    <div class="row bg-success text-white py-2 mb-4 rounded">
-        <div class="offset-sm-6 col-sm-2 text-right">
-            Subtotal<br>
-            <strong>Total</strong>
-        </div>
-        <div class="col-sm-2 text-right">
-            {{ subtotal }}<br>
-            <strong>{{ total }}</strong>
+        <div class="row bg-success text-white py-2 mb-4 rounded">
+            <div class="offset-sm-6 col-sm-2 text-right">
+                Subtotal<br>
+                <strong>Total</strong>
+            </div>
+            <div class="col-sm-2 text-right">
+                {{ subtotal }}<br>
+                <strong>{{ total }}</strong>
+            </div>
         </div>
     </div>
 </div>
@@ -114,11 +142,13 @@
 
 <script>
 const Datepicker = require('./datepicker.vue');
+const DurationFormatter = require('../mixins/durationformatter');
 const Entry = require('./entry.vue');
 const Pager = require('./pager.vue');
 const Select2 = require('./select2.vue');
 
 export default {
+    mixins: [ DurationFormatter ],
     data() {
         return {
             entries: null,
@@ -127,6 +157,19 @@ export default {
             next: null,
             previous: null,
             exportFormat: 'csv',
+            orderByOptions: [
+                { id: 'project__client__name', text: 'Client' },
+                { id: 'date', text: 'Date' },
+                { id: 'project__name', text: 'Project' },
+                { id: 'task__name', text: 'Task' },
+                { id: 'user__username', text: 'User' }
+            ],
+            orderBy: 'date',
+            orderDirOptions: [
+                { id: 'asc', text: 'Ascending' },
+                { id: 'desc', text: 'Descending' }
+            ],
+            orderDir: 'desc',
             project__client: null,
             dateMin: null,
             dateMax: null,
@@ -143,13 +186,10 @@ export default {
     },
     methods: {
         getEntries(url) {
-            toggleButtonBusy($('#generate-report'));
-            toggleButtonBusy($('#export-report'));
-
             let userEntries = timestrapConfig.API_URLS.ENTRIES;
             url = (typeof url !== 'undefined') ? url : userEntries;
 
-            let entriesFetch = quickFetch(url);
+            let entriesFetch = this.$quickFetch(url);
 
             entriesFetch.then(data => {
                 this.next = data.next;
@@ -172,15 +212,17 @@ export default {
                     });
                 });
 
-                this.subtotal = durationToString(data.subtotal_duration);
-                this.total = durationToString(data.total_duration);
-
-                toggleButtonBusy($('#generate-report'));
-                toggleButtonBusy($('#export-report'));
+                this.subtotal = this.durationToString(data.subtotal_duration);
+                this.total = this.durationToString(data.total_duration);
             });
         },
         getReport() {
+            let ordering = (this.orderDir == 'desc' ? '-' : '') + this.orderBy;
+            if (this.orderBy != 'date') {
+                ordering += ',-date';
+            }
             const query = {
+                ordering: ordering,
                 user: this.user,
                 project: this.project,
                 project__client: this.client,
@@ -192,7 +234,12 @@ export default {
             this.getEntries(url);
         },
         exportReport() {
+            let ordering = (this.orderDir == 'desc' ? '-' : '') + this.orderBy;
+            if (this.orderBy != 'date') {
+                ordering += ',-date';
+            }
             const query = {
+                ordering: ordering,
                 user: this.user,
                 project: this.project,
                 project__client: this.client,
@@ -204,9 +251,9 @@ export default {
             document.location.href = timestrapConfig.CORE_URLS.REPORTS_EXPORT + '?' + $.param(query);
         },
         loadSelect2Options() {
-            let users = quickFetch(timestrapConfig.API_URLS.USERS);
-            let clients = quickFetch(timestrapConfig.API_URLS.CLIENTS);
-            let tasks = quickFetch(timestrapConfig.API_URLS.TASKS);
+            let users = this.$quickFetch(timestrapConfig.API_URLS.USERS);
+            let clients = this.$quickFetch(timestrapConfig.API_URLS.CLIENTS);
+            let tasks = this.$quickFetch(timestrapConfig.API_URLS.TASKS);
             Promise.all([users, clients, tasks]).then(data => {
                 this.users = data[0].map(function(user) {
                     return { id: user.id, text: user.username };

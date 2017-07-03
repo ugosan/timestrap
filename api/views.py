@@ -6,11 +6,11 @@ from django.contrib.auth.models import User, Permission
 from rest_framework import viewsets, permissions, filters
 import django_filters
 
-from core.models import Client, Project, Entry
-from core.models import Task
+from core.models import Client, Project, Entry, Task, Invoice
 from .serializers import (UserSerializer, ClientSerializer,
                           PermissionSerializer, ProjectSerializer,
-                          EntrySerializer, TaskSerializer)
+                          EntrySerializer, TaskSerializer,
+                          InvoiceSerializer)
 from .pagination import LimitOffsetPaginationWithTotals
 
 
@@ -42,14 +42,14 @@ class PermissionViewSet(viewsets.ModelViewSet):
 
 
 class ClientViewSet(viewsets.ModelViewSet):
-    queryset = Client.objects.all()
+    queryset = Client.objects.filter(archive=False)
     serializer_class = ClientSerializer
     pagination_class = None
     filter_fields = ('id',)
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
-    queryset = Project.objects.all()
+    queryset = Project.objects.filter(archive=False)
     serializer_class = ProjectSerializer
     pagination_class = None
     filter_fields = ('id', 'client',)
@@ -69,7 +69,11 @@ class EntryViewSet(viewsets.ModelViewSet):
     serializer_class = EntrySerializer
     pagination_class = LimitOffsetPaginationWithTotals
     filter_class = EntryFilter
-    filter_backends = (filters.SearchFilter, filters.DjangoFilterBackend,)
+    filter_backends = (filters.SearchFilter, filters.DjangoFilterBackend,
+                       filters.OrderingFilter,)
+    ordering_fields = ('date', 'user__username', 'task__name', 'project__name',
+                       'project__client__name',)
+    ordering = ('-date',)
     search_fields = ('id', 'date', 'note', 'user__username', 'task__name',
                      'project__name', 'project__client__name',)
 
@@ -77,4 +81,10 @@ class EntryViewSet(viewsets.ModelViewSet):
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
+    pagination_class = None
+
+
+class InvoiceViewSet(viewsets.ModelViewSet):
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceSerializer
     pagination_class = None

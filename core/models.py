@@ -13,6 +13,7 @@ class Client(models.Model):
     name = models.CharField(max_length=255)
     archive = models.BooleanField(default=False)
     payment_id = models.CharField(max_length=255, blank=True, null=True)
+    invoice_email = models.EmailField(max_length=255, blank=True, null=True)
 
     class Meta:
         default_permissions = ('view', 'add', 'change', 'delete')
@@ -68,6 +69,7 @@ class Task(models.Model):
 
     class Meta:
         default_permissions = ('view', 'add', 'change', 'delete')
+        ordering = ['-id']
 
     def __str__(self):
         return 'Task: ' + self.name
@@ -81,6 +83,7 @@ class Entry(models.Model):
     date = models.DateField(blank=True)
     duration = models.DurationField(blank=True)
     note = models.TextField(blank=True, null=True)
+    invoiced = models.BooleanField(default=False)
 
     class Meta:
         default_permissions = ('view', 'add', 'change', 'delete')
@@ -100,7 +103,7 @@ class Invoice(models.Model):
     client = models.ForeignKey('Client')  # Redundant with entries?
     entries = models.ManyToManyField('Entry')
     created = models.DateTimeField(auto_now_add=True)
-    paid = models.DateTimeField()
+    paid = models.DateTimeField(blank=True, null=True)
     transaction_id = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:

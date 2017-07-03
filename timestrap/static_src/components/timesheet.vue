@@ -14,14 +14,16 @@
     </div>
 
     <div class="row py-1 bg-inverse text-white font-weight-bold rounded-top">
-        <div class="col-sm-3 mb-2">
-            Date
-        </div>
-        <div class="col-sm-3 mb-2">
-            Task
-        </div>
-        <div class="col-sm-6">
-        </div>
+        <template v-if="advancedMode">
+            <div class="col-sm-3 mb-2">
+                Date
+            </div>
+            <div class="col-sm-3 mb-2">
+                Task
+            </div>
+            <div class="col-sm-6">
+            </div>
+        </template>
         <div class="col-sm-3">
             Project
         </div>
@@ -32,31 +34,40 @@
             Duration
         </div>
         <div class="col-sm-2">
+            <a href="#"
+               id="entry-advanced-fields"
+               v-on:click.prevent
+               v-on:click="advanced"
+               class="btn btn-info btn-sm w-100">
+                Advanced
+            </a>
         </div>
     </div>
 
 
-    <form name="entry-add"
+    <form id="entry-add"
           class="row mb-4 py-2 bg-faded rounded-bottom"
-          v-if="global.perms.add_entry"
+          v-if="this.$perms.add_entry"
           v-on:submit.prevent
           v-on:submit="submitEntry">
-        <div class="col-sm-3 mb-2">
-            <datepicker name="entry-date"
-                        type="text"
-                        class="form-control form-control-sm date-input"
-                        v-model="date"
-                        v-bind:default="new Date()"
-                        placeholder="Date"></datepicker>
-        </div>
-        <div class="col-sm-3">
-            <select2 id="entry-task"
-                     v-model="task"
-                     v-bind:options="tasks"
-                     placeholder="Tasks"></select2>
-        </div>
-        <div class="col-sm-6">
-        </div>
+        <template v-if="advancedMode">
+            <div class="col-sm-3 mb-2">
+                <datepicker name="entry-date"
+                            type="text"
+                            class="form-control form-control-sm date-input"
+                            v-model="date"
+                            v-bind:default="new Date()"
+                            placeholder="Date"></datepicker>
+            </div>
+            <div class="col-sm-3">
+                <select2 id="entry-task"
+                        v-model="task"
+                        v-bind:options="tasks"
+                        placeholder="Tasks"></select2>
+            </div>
+            <div class="col-sm-6">
+            </div>
+        </template>
         <div class="col-sm-3">
             <select2 id="entry-project"
                      v-model="project"
@@ -81,39 +92,42 @@
         <div class="col-sm-2">
             <button name="entry-add-submit"
                     type="submit"
-                    class="btn btn-success btn-sm w-100">
+                    class="btn btn-success btn-sm w-100"
+                    v-block-during-fetch>
                 Add
             </button>
         </div>
     </form>
 
-    <div class="mb-4" v-for="(entryBlock, blockIndex) in entries">
-        <div class="row inset-row">
-            <div class="col-12">
-                <h2 class="display-4 text-muted">
-                    {{ moment(entryBlock.date) }}
-                </h2>
+    <div v-if="this.$perms.view_entry" id="entry-rows">
+        <div class="mb-4" v-for="(entryBlock, blockIndex) in entries">
+            <div class="row inset-row">
+                <div class="col-12">
+                    <h2 class="display-4 text-muted">
+                        {{ moment(entryBlock.date) }}
+                    </h2>
+                </div>
+            </div>
+            <div class="rounded">
+                <entry v-for="(entry, entryIndex) in entryBlock.entries"
+                       v-on:delete-entry="deleteEntry(blockIndex, entryIndex)"
+                       v-bind:entry="entry"
+                       v-bind:index="entryIndex"
+                       v-bind:key="entry.id"
+                       v-bind:editable="editable">
+                </entry>
             </div>
         </div>
-        <div class="entry-rows rounded">
-            <entry v-for="(entry, entryIndex) in entryBlock.entries"
-                   v-on:delete-entry="deleteEntry(blockIndex, entryIndex)"
-                   v-bind:entry="entry"
-                   v-bind:index="entryIndex"
-                   v-bind:key="entry.id"
-                   v-bind:editable="editable">
-            </entry>
-        </div>
-    </div>
 
-    <div class="row bg-success text-white py-2 mb-4 rounded">
-        <div class="offset-sm-6 col-sm-2 text-right">
-            Subtotal<br>
-            <strong>Total</strong>
-        </div>
-        <div class="col-sm-2 text-right">
-            {{ subtotal }}<br>
-            <strong>{{ total }}</strong>
+        <div class="row bg-success text-white py-2 mb-4 rounded">
+            <div class="offset-sm-6 col-sm-2 text-right">
+                Subtotal<br>
+                <strong>Total</strong>
+            </div>
+            <div class="col-sm-2 text-right">
+                {{ subtotal }}<br>
+                <strong>{{ total }}</strong>
+            </div>
         </div>
     </div>
 </div>
@@ -122,11 +136,13 @@
 
 <script>
 const Datepicker = require('./datepicker.vue');
+const DurationFormatter = require('../mixins/durationformatter');
 const Entry = require('./entry.vue');
 const Pager = require('./pager.vue');
 const Select2 = require('./select2.vue');
 
 export default {
+    mixins: [ DurationFormatter ],
     data() {
         return {
             entries: null,
@@ -137,7 +153,8 @@ export default {
             previous: null,
             editable: true,
             tasks: {},
-            projects: {}
+            projects: {},
+            advancedMode: false
         };
     },
     methods: {
@@ -145,7 +162,7 @@ export default {
             let userEntries = timestrapConfig.API_URLS.ENTRIES + '?user=' + timestrapConfig.USER.ID;
             url = (typeof url !== 'undefined') ? url : userEntries;
 
-            let entriesFetch = quickFetch(url);
+            let entriesFetch = this.$quickFetch(url);
 
             entriesFetch.then(data => {
                 this.next = data.next;
@@ -169,12 +186,11 @@ export default {
                     });
                 });
 
-                this.subtotal = durationToString(data.subtotal_duration);
-                this.total = durationToString(data.total_duration);
+                this.subtotal = this.durationToString(data.subtotal_duration);
+                this.total = this.durationToString(data.total_duration);
             });
         },
         submitEntry(e) {
-            toggleButtonBusy(e.target);
             let body = {
                 date: this.date,
                 task: this.task,
@@ -183,7 +199,7 @@ export default {
                 duration: this.duration,
                 user: timestrapConfig.USER.URL
             };
-            quickFetch(timestrapConfig.API_URLS.ENTRIES, 'post', body).then(data => {
+            this.$quickFetch(timestrapConfig.API_URLS.ENTRIES, 'post', body).then(data => {
                 $.growl.notice({ message: 'New entry added!' });
                 let entryAdded = false;
                 this.entries.map(entryBlock => {
@@ -201,29 +217,35 @@ export default {
                 }
                 this.note = '';
                 this.duration = '';
-                toggleButtonBusy(e.target);
             }).catch(error => console.log(error));
         },
         deleteEntry: function(blockIndex, entryIndex) {
             this.entries[blockIndex].entries.splice(entryIndex, 1);
         },
         loadSelect2Options() {
-            let tasks = quickFetch(timestrapConfig.API_URLS.TASKS);
-            let clients = quickFetch(timestrapConfig.API_URLS.CLIENTS);
-            Promise.all([tasks, clients]).then(data => {
-                this.tasks = data[0].map(function(task) {
-                    return { id: task.url, text: task.name };
-                });
-                this.projects = data[1].map(function(client) {
-                    let projects = client.projects.map(function(project) {
-                        return { id: project.url, text: project.name };
+            if (this.$perms.view_task) {
+                this.$quickFetch(timestrapConfig.API_URLS.TASKS).then(data => {
+                    this.tasks = data.map(function(task) {
+                        return { id: task.url, text: task.name };
                     });
-                    return { text: client.name, children: projects };
                 });
-            });
+            }
+            if (this.$perms.view_client && this.$perms.view_project) {
+                this.$quickFetch(timestrapConfig.API_URLS.CLIENTS).then(data => {
+                    this.projects = data.map(function(client) {
+                        let projects = client.projects.map(function(project) {
+                            return { id: project.url, text: project.name };
+                        });
+                        return { text: client.name, children: projects };
+                    });
+                });
+            }
         },
         moment(date) {
             return moment(date).format('LL');
+        },
+        advanced() {
+            this.advancedMode = !this.advancedMode;
         }
     },
     mounted() {

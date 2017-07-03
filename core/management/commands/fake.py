@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 
 from faker import Factory
 
-from core.models import Client, Entry, Project, Task
+from core.models import Client, Entry, Project, Task, Invoice
 
 
 class Command(BaseCommand):
@@ -74,6 +74,7 @@ class Command(BaseCommand):
 
         users = User.objects.all()
         projects = Project.objects.all()
+        tasks = Task.objects.all()
 
         for project in projects:
             entry_iterations = randint(iterations*2, iterations*4)
@@ -90,10 +91,16 @@ class Command(BaseCommand):
                 Entry.objects.create(
                     project=project,
                     user=choice(users),
+                    task=choice(tasks),
                     date=date,
                     duration=duration,
                     note=fake.sentence(nb_words=6, variable_nb_words=True)
                 )
+
+        for project in Project.objects.all():
+            invoice = Invoice.objects.create(client=project.client)
+            for entry in project.entries.iterator():
+                invoice.entries.add(entry)
 
         if verbosity > 0:
             self.stdout.write(

@@ -1,48 +1,22 @@
 <template>
 <div class="container">
-    <div class="row py-1 bg-inverse text-white font-weight-bold rounded-top">
-        <div class="col-sm-8">
-            Task
-        </div>
-        <div class="col-sm-2">
-            Hourly Rate
-        </div>
-        <div class="col-sm-2">
+    <div v-if="this.$perms.add_task" class="row py-2 mb-4 bg-faded rounded">
+        <div class="col-12">
+            <button name="task-add"
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    data-toggle="modal"
+                    data-target="#new-task-modal"
+                    v-if="this.$perms.add_task">
+                <i class="fa fa-plus mr-1" aria-hidden="true"></i>
+                New Task
+            </button>
         </div>
     </div>
 
-    <form name="task-add"
-          class="row mb-4 py-2 bg-faded rounded-bottom"
-          v-if="global.perms.add_task"
-          v-on:submit.prevent
-          v-on:submit="submitTask">
-        <div class="col-8">
-            <input name="task-name"
-                   type="text"
-                   class="form-control form-control-sm"
-                   v-model.trim="name"
-                   placeholder="New Task Name"
-                   required/>
-        </div>
-        <div class="col-2">
-            <input name="task-hourly-rate"
-                   type="text"
-                   class="form-control form-control-sm"
-                   v-model.number="hourly_rate"
-                   placeholder="Hourly Rate"
-                   required/>
-        </div>
-        <div class="col-2">
-            <button
-                    name="task-add-submit"
-                    type="submit"
-                    class="btn btn-success btn-sm w-100">
-                Add
-            </button>
-        </div>
-    </form>
+    <new-task @appendTask="appendTask" v-if="this.$perms.add_task"></new-task>
 
-    <div class="task-rows rounded">
+    <div v-if="this.$perms.view_task" id="task-rows" class="rounded">
         <task v-for="(task, index) in tasks"
             v-bind:task="task"
             v-bind:index="index"
@@ -55,6 +29,7 @@
 
 <script>
 const Task = require('./task.vue');
+const NewTask = require('./new-task.vue');
 
 export default {
     data() {
@@ -66,29 +41,20 @@ export default {
         getTasks(url) {
             url = (typeof url !== 'undefined') ? url : timestrapConfig.API_URLS.TASKS;
 
-            quickFetch(url).then(data => {
+            this.$quickFetch(url).then(data => {
                 this.tasks = data;
             }).catch(error => console.log(error));
         },
-        submitTask(e) {
-            toggleButtonBusy(e.target);
-            let body = {
-                name: this.name,
-                hourly_rate: this.hourly_rate
-            };
-            quickFetch(timestrapConfig.API_URLS.TASKS, 'post', body).then(data => {
-                this.name = '';
-                this.hourly_rate = '';
-                this.tasks.unshift(data);
-                toggleButtonBusy(e.target);
-            }).catch(error => console.log(error));
-        },
+        appendTask(task) {
+            this.tasks.unshift(task);
+        }
     },
     mounted() {
         return this.getTasks();
     },
     components: {
-        Task
+        Task,
+        NewTask
     }
 };
 </script>
