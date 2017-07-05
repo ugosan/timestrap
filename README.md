@@ -29,7 +29,7 @@ Want to get up and running quickly? :rocket:
 
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/overshard/timestrap)
 
-The Heroku deployment has a default username and password with superuser 
+The Heroku deployment has a default username and password with superuser
 access, please change it via the admin panel:
 
 - Username: `admin`
@@ -41,13 +41,17 @@ create two settings before pushing using `heroku config:set`:
     heroku config:set DJANGO_SETTINGS_MODULE=timestrap.settings.heroku
     heroku config:set SECRET_KEY=ChangeMeToSomethingRandom
 
+You have also to install the node.js buildpack. Node.js itself is not required for Timestrap to function, the buildpack is only used for compiling the static files.
+
+    heroku buildpacks:add --index 1 heroku/nodejs
+
 :lock: After a successful push, create a super user to allow login:
 
     heroku run python manage.py createsuperuser
 
 ## Manual Installation
 
-Follow the steps below to install Timestrap locally or on any server. This 
+Follow the steps below to install Timestrap locally or on any server. This
 process installs the minimal requirements to *run* Timestrap. For development
 requirements and procedures, see [Development Installation](#development-installation).
 
@@ -76,9 +80,9 @@ to seek assistance or report a bug! :bug:
 
 ## Development Installation
 
-**:exclamation: Important Note:** Node is not required for Timestrap to function. Node is 
-used for building Timestrap's static files and improving the development 
-workflow. This installation procedure is only necessary for making changes to 
+**:exclamation: Important Note:** Node is not required for Timestrap to function. Node is
+used for building Timestrap's static files and improving the development
+workflow. This installation procedure is only necessary for making changes to
 static files.
 
 1. Install the requirements:
@@ -113,5 +117,5 @@ are :+1: welcome and :clap: encouraged!
 
 ## Further Reading
 
-For additional documentation on [configuration options](RTD), [installing requirements](RTD), 
+For additional documentation on [configuration options](RTD), [installing requirements](RTD),
 [testing](RTD) and more, please see [https://timestrap.readthedocs.io/](https://timestrap.readthedocs.io/).
